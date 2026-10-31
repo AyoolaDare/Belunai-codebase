@@ -48,7 +48,17 @@ tests/unit|e2e     test layers (integration/RLS tests arrive with BEL-0202)
 
 ## Environment and secrets
 
-- Copy `.env.example` to `.env.local`. All `.env*` files except the template are git-ignored.
+- All `.env*` files are git-ignored; no environment file is committed. For local development create `.env.local` by hand.
+- Hosting is Vercel: set each value in the Vercel project's Environment Variables, scoped separately to Development, Preview and Production. Pull local values with `vercel env pull .env.local` once the project is linked.
+
+| Variable | Exposure | Added at |
+|---|---|---|
+| `NEXT_PUBLIC_SITE_URL` | Public | BEL-0201 |
+| `NEXT_PUBLIC_SUPABASE_URL` | Public | BEL-0201 |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public | BEL-0201 |
+| `SUPABASE_SECRET_KEY` | Server-only | BEL-0201 |
+| `NEXT_TELEMETRY_DISABLED=1` | Build | BEL-0101 (set in CI) |
+
 - Only `NEXT_PUBLIC_*` values reach the browser. Server secrets (`SUPABASE_SECRET_KEY`) live only in managed environment configuration and in modules that `import "server-only"`.
 - Local, staging and production use separate projects and credentials. Tests never use production credentials or data.
 - A leaked secret is rotated and reported, not just deleted from the file.

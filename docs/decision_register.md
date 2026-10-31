@@ -29,7 +29,9 @@ Open registration with optional founding invitations; proposed 18+ pilot by self
 | Framework/package versions | Engineering | Exact pins in package.json; see docs/development.md | BEL-0101 | docs/development.md |
 | Test tooling | Engineering | Vitest 5.0.5 (unit), Playwright 1.63.0 (E2E) | BEL-0103 | docs/development.md |
 | CI | Engineering | GitHub Actions `.github/workflows/ci.yml` | BEL-0103 | CI runs |
-| Hosting platform, domain, TLS, redirect URLs | Owner | **Unassigned** | BEL-0201 | — |
+| Hosting platform | Owner | Vercel (decided 2026-10-31) | BEL-0201 | Owner instruction |
+| Domain, TLS, allowed redirect URLs | Owner | **Unassigned** (TLS provided by Vercel once a domain is attached) | BEL-0201 | — |
+| Environment file policy | Owner | No `.env*` file committed; variables live in Vercel project settings and are listed in development.md | BEL-0104 | Owner instruction 2026-10-31 |
 | Supabase organisation/projects (local, staging, production) and region | Owner | **Unassigned** | BEL-0201 | — |
 | Email sender, Google OAuth client, phone OTP provider and budget | Owner | **Unassigned** | BEL-0301 | — |
 | Platform owner bootstrap custody | Owner | **Unassigned** | BEL-0205 | — |
