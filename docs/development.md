@@ -14,10 +14,12 @@
 | Vitest | 5.0.5 | Pure-rule unit tests in `tests/unit` |
 | Playwright | 1.63.0 | E2E in `tests/e2e` at 360/768/1280px against the production build |
 | server-only | 0.0.1 | Marks server modules so client imports fail at build |
+| Supabase CLI | 2.122.0 | `npx supabase`; config in `supabase/config.toml` |
+| pg (node-postgres) | 8.23.1 | Dev only: database test harness |
 
 Next.js 16 differs from older versions: middleware is now `proxy.ts`, error boundaries receive `retry` (not `reset`), and session reads under Cache Components must sit inside `<Suspense>`. Read the version-matched docs in `node_modules/next/dist/docs/` before using a framework API.
 
-Supabase packages (`@supabase/supabase-js`, `@supabase/ssr`) and the Supabase CLI are added at BEL-0201, not before.
+Supabase client packages (`@supabase/supabase-js`, `@supabase/ssr`) are added when the app first connects (BEL-0201 verification / BEL-0301), not before.
 
 ## Commands
 
@@ -28,6 +30,8 @@ Supabase packages (`@supabase/supabase-js`, `@supabase/ssr`) and the Supabase CL
 | `npm run lint` | ESLint, zero warnings allowed |
 | `npm run typecheck` | Generate route types, then `tsc --noEmit` |
 | `npm test` | Unit tests |
+| `npm run db:reset` | Recreate the local disposable test database and apply all migrations |
+| `npm run test:db` | Database tests (DB-01 inventory, constraints) against a fresh local database |
 | `npm run build` | Production build |
 | `npm run check:secrets` | Scan tracked files and built client JS for credentials and server-only variable names |
 | `npm run test:e2e` | Playwright against `next start` (run `npm run build` first) |
@@ -43,8 +47,20 @@ src/components     shared UI
 src/lib            framework-agnostic helpers (later: Supabase clients, permissions, errors)
 src/modules        business modules, created only when a phase needs one
 supabase/          migrations and seed (from BEL-0202)
-tests/unit|e2e     test layers (integration/RLS tests arrive with BEL-0202)
+tests/unit|db|e2e  test layers; tests/db/supabase-shim.sql emulates Supabase roles locally
 ```
+
+## Database development
+
+Migrations live in `supabase/migrations/` as `YYYYMMDDHHMMSS_mNN_name.sql`, one file per schema group (backend_schema.md section 11). Never edit a migration that has been applied to a hosted project; add a new one.
+
+Local database tests need PostgreSQL 16+ on localhost. The harness only accepts a localhost URL and a database named `belunai_test*`, and drops and recreates it on every run:
+
+```bash
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm run test:db
+```
+
+`tests/db/supabase-shim.sql` recreates what Supabase provisions before user migrations (API roles, `auth.users`, `auth.uid()`, Supabase's default public-schema grants). It is test-only and never applied to a Supabase project. Hosted Supabase runs PostgreSQL 17; CI tests on 17, the development container on 16.
 
 ## Environment and secrets
 

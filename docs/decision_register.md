@@ -7,7 +7,7 @@ Plan reference: implementation_plan.md section 6. Never store credentials here.
 | Gate | Status | Date | Record |
 |---|---|---|---|
 | G00 | APPROVED | 2026-10-31 | Owner instruction in the development session: "build using the appropriate code and also follow the document". Recorded as acceptance of the four v2.1 documents and the section 4 PRD product decisions **as written, with no changes**. Owner may revise any decision; a revision is a coordinated document change before dependent work. |
-| G01 | NOT_APPROVED | — | Evidence presented in implementation_status.md; awaiting owner review. |
+| G01 | APPROVED | 2026-10-31 | Owner instruction "Okay proceed" after P01 evidence and gate request were presented. |
 
 ### Product decisions accepted at G00 (PRD section 4, unchanged)
 
@@ -17,8 +17,14 @@ Open registration with optional founding invitations; proposed 18+ pilot by self
 
 | Item | Owner action | Due before |
 |---|---|---|
-| Schema migration group M13 (deletion/retention/grants/search/query verification) is not named by any plan task; BEL-0202 lists M01–M12 | Confirm assignment. Proposed: M13 deletion/retention parts with BEL-0403/0404, search indexes with BEL-1003, final grant/query verification with BEL-1301 | BEL-0202 |
 | GitHub branch protection requiring the CI check on the default branch | Enable in repository settings (Claude cannot change repository settings) | G01 |
+
+## Plan revisions
+
+| ID | Date | Decision | Effect |
+|---|---|---|---|
+| REV-01 | 2026-10-31 | Owner approved writing and testing BEL-0202 migrations against local PostgreSQL while BEL-0201 waits for owner-created Supabase projects | BEL-0202 may proceed before BEL-0201 is COMPLETE. BEL-0202 cannot be COMPLETE until the migrations pass on a real Supabase project. Strict order otherwise unchanged |
+| REV-02 | 2026-10-31 | Owner assigned schema group M13 by topic | Deletion/retention structures with BEL-0403/0404; search indexes (post body GIN, profile/community/organisation name and slug) with BEL-1003; final grant and query-plan verification with BEL-1301 |
 
 ## Environment decision register
 
@@ -32,7 +38,8 @@ Open registration with optional founding invitations; proposed 18+ pilot by self
 | Hosting platform | Owner | Vercel (decided 2026-10-31) | BEL-0201 | Owner instruction |
 | Domain, TLS, allowed redirect URLs | Owner | **Unassigned** (TLS provided by Vercel once a domain is attached) | BEL-0201 | — |
 | Environment file policy | Owner | No `.env*` file committed; variables live in Vercel project settings and are listed in development.md | BEL-0104 | Owner instruction 2026-10-31 |
-| Supabase organisation/projects (local, staging, production) and region | Owner | **Unassigned** | BEL-0201 | — |
+| Supabase projects | Owner | Owner creates development and staging projects (production later) in the Supabase dashboard and adds URL/keys as secrets in the Claude environment settings; never pasted into chat | BEL-0201 | Owner decision 2026-10-31 |
+| Supabase region | Owner | EU West (London), eu-west-2 | BEL-0201 | Owner decision 2026-10-31 |
 | Email sender, Google OAuth client, phone OTP provider and budget | Owner | **Unassigned** | BEL-0301 | — |
 | Platform owner bootstrap custody | Owner | **Unassigned** | BEL-0205 | — |
 | Terms, privacy notice, community standards, age safeguards texts | Owner | **Unassigned** | BEL-0302 (versions) / BEL-1402 (final) | — |
