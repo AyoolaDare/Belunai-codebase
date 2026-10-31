@@ -50,6 +50,10 @@ supabase/          migrations and seed (from BEL-0202)
 tests/unit|db|e2e  test layers; tests/db/supabase-shim.sql emulates Supabase roles locally
 ```
 
+## Agent skills
+
+Installed with `npx skills add supabase/agent-skills` (skills CLI 1.7.4, copied into `.claude/skills/`, pinned by hash in `skills-lock.json`): `supabase` and `supabase-postgres-best-practices`. Reviewed 2026-10-31: Markdown guidance only, no scripts. They are advisory; where they differ from backend_schema.md (for example, UUID primary keys), the schema document wins. Update with `npx skills update -p`.
+
 ## Database development
 
 Migrations live in `supabase/migrations/` as `YYYYMMDDHHMMSS_mNN_name.sql`, one file per schema group (backend_schema.md section 11). Never edit a migration that has been applied to a hosted project; add a new one.
