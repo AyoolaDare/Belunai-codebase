@@ -30,6 +30,7 @@ Supabase client packages (`@supabase/supabase-js`, `@supabase/ssr`) are added wh
 | `npm run lint` | ESLint, zero warnings allowed |
 | `npm run typecheck` | Generate route types, then `tsc --noEmit` |
 | `npm test` | Unit tests |
+| `npm run db:push` / `db:verify` | Apply migrations to / run DB-01 checks on the hosted test project over HTTPS |
 | `npm run db:reset` | Recreate the local disposable test database and apply all migrations |
 | `npm run test:db` | Database tests (DB-01 inventory, constraints) against a fresh local database |
 | `npm run build` | Production build |
@@ -72,9 +73,11 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm
 2. From the project, copy:
    - **Project URL** (Project Settings → Data API) → `NEXT_PUBLIC_SUPABASE_URL`
    - **Publishable key** (Project Settings → API Keys) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-   - **Connection string**, Session pooler, with the password filled in (Connect button at the top) → `SUPABASE_DB_URL`
-3. Add the three values as secrets in the Claude environment settings and in Vercel (all environments). Never commit or paste them into chat.
-4. Apply migrations: `npm run db:push`.
+   - **Access token**: Account → Access Tokens → generate a token scoped to the `belunai-test` project only, with database read/write permission → `SUPABASE_ACCESS_TOKEN`
+3. Add all three as secrets in the Claude environment settings. Add only the two `NEXT_PUBLIC_` values to Vercel; the access token never goes to Vercel. Never commit or paste them into chat.
+4. Apply migrations: `npm run db:push`; then check them: `npm run db:verify`.
+
+The development container cannot open direct Postgres connections (ports 5432/6543 are blocked; only HTTPS leaves), so migrations go through the Supabase Management API over HTTPS (`scripts/supabase-remote.mjs`). History is written to `supabase_migrations.schema_migrations`, the same table the Supabase CLI uses.
 
 ## Environment and secrets
 
@@ -85,7 +88,7 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Public | BEL-0201 |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public | BEL-0201 |
-| `SUPABASE_DB_URL` | Server-only (migrations and tooling, never the app) | BEL-0201 |
+| `SUPABASE_ACCESS_TOKEN` | Tooling only (migrations/verification); never in Vercel or the app | BEL-0201 |
 | `SUPABASE_SECRET_KEY` | Server-only | When a feature first needs admin access |
 | `NEXT_TELEMETRY_DISABLED=1` | Build | BEL-0101 (set in CI) |
 

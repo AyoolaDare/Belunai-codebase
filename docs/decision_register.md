@@ -24,7 +24,7 @@ Open registration with optional founding invitations; proposed 18+ pilot by self
 | ID | Date | Decision | Effect |
 |---|---|---|---|
 | REV-01 | 2026-10-31 | Owner approved writing and testing BEL-0202 migrations against local PostgreSQL while BEL-0201 waits for owner-created Supabase projects | BEL-0202 may proceed before BEL-0201 is COMPLETE. BEL-0202 cannot be COMPLETE until the migrations pass on a real Supabase project. Strict order otherwise unchanged |
-| REV-03 | 2026-10-31 | Owner: the app is for testing, not production; keep setup simple | One Supabase project (`belunai-test`) serves as both development and staging. Only three secrets are needed: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_DB_URL`. `SUPABASE_SECRET_KEY` is added only when a feature first needs server-side admin access. Production-only items (separate production project, domain, backups, monitoring, policies) stay deferred until the owner decides to launch |
+| REV-03 | 2026-10-31 | Owner: the app is for testing, not production; keep setup simple | One Supabase project (`belunai-test`) serves as both development and staging. Only three secrets are needed: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_ACCESS_TOKEN` (project-scoped; replaced `SUPABASE_DB_URL` on 2026-10-31 because the development container blocks direct Postgres ports, so migrations run over the HTTPS Management API). `SUPABASE_SECRET_KEY` is added only when a feature first needs server-side admin access. Production-only items (separate production project, domain, backups, monitoring, policies) stay deferred until the owner decides to launch |
 | REV-02 | 2026-10-31 | Owner assigned schema group M13 by topic | Deletion/retention structures with BEL-0403/0404; search indexes (post body GIN, profile/community/organisation name and slug) with BEL-1003; final grant and query-plan verification with BEL-1301 |
 
 ## Environment decision register
@@ -39,7 +39,7 @@ Open registration with optional founding invitations; proposed 18+ pilot by self
 | Hosting platform | Owner | Vercel (decided 2026-10-31) | BEL-0201 | Owner instruction |
 | Domain, TLS, allowed redirect URLs | Owner | **Unassigned** (TLS provided by Vercel once a domain is attached) | BEL-0201 | — |
 | Environment file policy | Owner | No `.env*` file committed; variables live in Vercel project settings and are listed in development.md | BEL-0104 | Owner instruction 2026-10-31 |
-| Supabase projects | Owner | One test project `belunai-test` (REV-03); owner adds its URL, publishable key and database connection string as Claude environment secrets, never pasted into chat | BEL-0201 | Owner decision 2026-10-31 |
+| Supabase projects | Owner | One test project `belunai-test` (REV-03); owner adds its URL, publishable key and a project-scoped access token as Claude environment secrets, never pasted into chat | BEL-0201 | Owner decision 2026-10-31 |
 | Supabase region | Owner | EU West (London), eu-west-2 | BEL-0201 | Owner decision 2026-10-31 |
 | Email sender, Google OAuth client, phone OTP provider and budget | Owner | **Unassigned** | BEL-0301 | — |
 | Platform owner bootstrap custody | Owner | **Unassigned** | BEL-0205 | — |

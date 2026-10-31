@@ -14,7 +14,8 @@
     "check:secrets": "node scripts/check-secrets.mjs",
     "test:db": "vitest run --project db",
     "db:reset": "node scripts/db-reset.mjs",
-    "db:push": "supabase db push --db-url \"$SUPABASE_DB_URL\""
+    "db:push": "node scripts/supabase-remote.mjs push",
+    "db:verify": "node scripts/supabase-remote.mjs verify"
   },
   "dependencies": {
     "next": "16.4.3",
