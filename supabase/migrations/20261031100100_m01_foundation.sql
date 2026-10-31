@@ -15,6 +15,18 @@ alter default privileges in schema public revoke all on sequences from anon, aut
 alter default privileges in schema public revoke all on functions from anon, authenticated;
 alter default privileges revoke execute on functions from public;
 
+-- Supabase may provision public.rls_auto_enable() (SECURITY DEFINER, backs the
+-- ensure_rls event trigger) before these migrations run, created under the old
+-- default grants. Event triggers do not check EXECUTE when firing, so revoking
+-- keeps the trigger working while removing the API roles' grant.
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end
+$$;
+
 -- updated_at is database-maintained, never client supplied.
 create function private.set_updated_at()
 returns trigger

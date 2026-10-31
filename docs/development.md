@@ -77,7 +77,9 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm
 3. Add all three as secrets in the Claude environment settings. Add only the two `NEXT_PUBLIC_` values to Vercel; the access token never goes to Vercel. Never commit or paste them into chat.
 4. Apply migrations: `npm run db:push`; then check them: `npm run db:verify`.
 
-The development container cannot open direct Postgres connections (ports 5432/6543 are blocked; only HTTPS leaves), so migrations go through the Supabase Management API over HTTPS (`scripts/supabase-remote.mjs`). History is written to `supabase_migrations.schema_migrations`, the same table the Supabase CLI uses.
+The development container cannot open direct Postgres connections (ports 5432/6543 are blocked; only HTTPS leaves), so migrations go through the Supabase Management API over HTTPS (`scripts/supabase-remote.mjs`). History is written to `supabase_migrations.schema_migrations`, the same table the Supabase CLI uses. `db:verify` mirrors the DB-01 inventory (tests/db/inventory.test.ts); its role-denial checks run as `anon`/`authenticated` inside transactions that are never committed, so it writes nothing.
+
+New Supabase projects pre-provision `public.rls_auto_enable()` and its `ensure_rls` event trigger (enables RLS on every new public table), with EXECUTE granted to the API roles. M01 revokes that grant; the trigger keeps working. `tests/db/supabase-shim.sql` reproduces the function so local tests catch a regression.
 
 ## Environment and secrets
 
