@@ -62,6 +62,16 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm
 
 `tests/db/supabase-shim.sql` recreates what Supabase provisions before user migrations (API roles, `auth.users`, `auth.uid()`, Supabase's default public-schema grants). It is test-only and never applied to a Supabase project. Hosted Supabase runs PostgreSQL 17; CI tests on 17, the development container on 16.
 
+## Supabase test project setup (REV-03)
+
+1. In the Supabase dashboard create one project named `belunai-test`, region **West EU (London)**. Save the database password it asks for.
+2. From the project, copy:
+   - **Project URL** (Project Settings → Data API) → `NEXT_PUBLIC_SUPABASE_URL`
+   - **Publishable key** (Project Settings → API Keys) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - **Connection string**, Session pooler, with the password filled in (Connect button at the top) → `SUPABASE_DB_URL`
+3. Add the three values as secrets in the Claude environment settings and in Vercel (all environments). Never commit or paste them into chat.
+4. Apply migrations: `npm run db:push`.
+
 ## Environment and secrets
 
 - All `.env*` files are git-ignored; no environment file is committed. For local development create `.env.local` by hand.
@@ -69,14 +79,14 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm
 
 | Variable | Exposure | Added at |
 |---|---|---|
-| `NEXT_PUBLIC_SITE_URL` | Public | BEL-0201 |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public | BEL-0201 |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public | BEL-0201 |
-| `SUPABASE_SECRET_KEY` | Server-only | BEL-0201 |
+| `SUPABASE_DB_URL` | Server-only (migrations and tooling, never the app) | BEL-0201 |
+| `SUPABASE_SECRET_KEY` | Server-only | When a feature first needs admin access |
 | `NEXT_TELEMETRY_DISABLED=1` | Build | BEL-0101 (set in CI) |
 
 - Only `NEXT_PUBLIC_*` values reach the browser. Server secrets (`SUPABASE_SECRET_KEY`) live only in managed environment configuration and in modules that `import "server-only"`.
-- Local, staging and production use separate projects and credentials. Tests never use production credentials or data.
+- Testing setup (REV-03): one Supabase project, `belunai-test`, serves development and staging. A separate production project is created only if the app launches. Automated tests never use real people's data.
 - A leaked secret is rotated and reported, not just deleted from the file.
 
 ## Dependency review (BEL-0104, 2026-10-31)
