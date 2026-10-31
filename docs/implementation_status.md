@@ -25,7 +25,7 @@ IN_REVIEW means evidence is attached and the work awaits owner gate review. Evid
 |---|---|---|---|---|---|
 | BEL-0101 | IN_REVIEW | PRD-16/17 | Scaffolded with `create-next-app@16.4.3`; exact pins and Node 22 recorded in development.md. `rm -rf node_modules .next && npm ci && npm run check` exit 0; `next start` serves all routes | — | — |
 | BEL-0102 | IN_REVIEW | PRD-16/17 | Route groups (public)/(auth)/(app); responsive nav (bottom bar <768px, sidebar ≥768px); root error, global-error, not-found, (app) loading. Playwright at 360/768/1280: one h1 + main landmark, no horizontal overflow, skip link, keyboard nav with aria-current, unbuilt screens expose no controls, 404 neutral | — | — |
-| BEL-0103 | IN_REVIEW | PRD-16/17 | Vitest + Playwright; `.github/workflows/ci.yml` runs lint/typecheck/unit/build/secret scan/prod audit/E2E. Local rehearsal: deliberate failing unit test → `npm test` exit 1; removed → exit 0. GitHub run result recorded on push | — | Branch protection must be enabled by owner for CI to block merges |
+| BEL-0103 | IN_REVIEW | PRD-16/17 | Vitest + Playwright; `.github/workflows/ci.yml` runs lint/typecheck/unit/build/secret scan/prod audit/E2E. Local rehearsal: deliberate failing unit test → `npm test` exit 1; removed → exit 0. GitHub Actions run 1 on commit 21ce03a: success (https://github.com/AyoolaDare/Belunai-codebase/actions/runs/41173164121) | — | Branch protection must be enabled by owner for CI to block merges |
 | BEL-0104 | IN_REVIEW | PRD-16/17 | `.env.example`; `scripts/check-secrets.mjs` scans tracked files and `.next/static`. Rehearsal: planted `sb_secret_…` in client bundle → exit 1. Licence/audit review in development.md. One package manager (npm) | — | — |
 
 ## Known limitations of P01 evidence
