@@ -37,7 +37,7 @@ Open registration with optional founding invitations; proposed 18+ pilot by self
 | Test tooling | Engineering | Vitest 5.0.5 (unit), Playwright 1.63.0 (E2E) | BEL-0103 | docs/development.md |
 | CI | Engineering | GitHub Actions `.github/workflows/ci.yml` | BEL-0103 | CI runs |
 | Hosting platform | Owner | Vercel (decided 2026-10-31) | BEL-0201 | Owner instruction |
-| Domain, TLS, allowed redirect URLs | Owner | **Unassigned** (TLS provided by Vercel once a domain is attached) | BEL-0201 | — |
+| Domain, TLS, allowed redirect URLs | Owner | Testing (REV-03): `https://belunai.vercel.app` on Vercel's default domain, HTTPS with HSTS by Vercel. Supabase Auth target: site URL `https://belunai.vercel.app`; redirect allowlist `https://belunai.vercel.app/auth/callback` and `http://localhost:3000/auth/callback` (owner to apply; checked 2026-10-31: still site URL `http://localhost:3000`, allowlist empty). Custom domain deferred until launch | BEL-0301 | Owner shared deployment URL 2026-10-31 |
 | Environment file policy | Owner | No `.env*` file committed; variables live in Vercel project settings and are listed in development.md | BEL-0104 | Owner instruction 2026-10-31 |
 | Supabase projects | Owner | One test project `belunai-test` (REV-03); owner adds its URL, publishable key and a project-scoped access token as Claude environment secrets, never pasted into chat | BEL-0201 | Owner decision 2026-10-31 |
 | Supabase region | Owner | EU West (London), eu-west-2 | BEL-0201 | Owner decision 2026-10-31 |

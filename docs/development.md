@@ -86,7 +86,7 @@ New Supabase projects pre-provision `public.rls_auto_enable()` and its `ensure_r
 ## Environment and secrets
 
 - All `.env*` files are git-ignored; no environment file is committed. For local development create `.env.local` by hand.
-- Hosting is Vercel: set each value in the Vercel project's Environment Variables, scoped separately to Development, Preview and Production. Pull local values with `vercel env pull .env.local` once the project is linked.
+- Hosting is Vercel; the testing deployment is `https://belunai.vercel.app`. Live check 2026-10-31: landing and `/sign-in` serve over HTTPS with HSTS, and the 9 client bundles contain no secret patterns or the access token. Set each value in the Vercel project's Environment Variables, scoped separately to Development, Preview and Production. Pull local values with `vercel env pull .env.local` once the project is linked.
 
 | Variable | Exposure | Added at |
 |---|---|---|
