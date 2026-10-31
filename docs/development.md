@@ -57,7 +57,9 @@ Installed with `npx skills add supabase/agent-skills` (skills CLI 1.7.4, copied 
 
 ## Database development
 
-Migrations live in `supabase/migrations/` as `YYYYMMDDHHMMSS_mNN_name.sql`, one file per schema group (backend_schema.md section 11). Never edit a migration that has been applied to a hosted project; add a new one.
+Migrations live in `supabase/migrations/`. The initial schema is `YYYYMMDDHHMMSS_mNN_name.sql`, one file per schema group (backend_schema.md section 11). M01–M12 are applied to `belunai-test` and frozen; later changes are new files named after their task, `YYYYMMDDHHMMSS_belNNNN_name.sql`. Never edit a migration that has been applied to a hosted project; add a new one.
+
+Access predicates (`private.is_eligible`, `are_friends`, `is_organisation_admin`, …) are SECURITY DEFINER functions owned by `belunai_access_owner`, a NOLOGIN role with column-level SELECT on only the columns they read. They take explicit UUIDs; callers pass `(select auth.uid())`, never a request value. Nobody but the owner and the migration role can execute them. To use one in a policy or RPC, the migration grants EXECUTE on that exact signature to `authenticated` **as the owner** (`set local role belunai_access_owner; grant …; reset role;`) and grants USAGE on schema `private`. The Data API cannot reach `private` either way. If a predicate needs a new column, grant SELECT on that column to the owner role in the same migration.
 
 Local database tests need PostgreSQL 16+ on localhost. The harness only accepts a localhost URL and a database named `belunai_test*`, and drops and recreates it on every run:
 

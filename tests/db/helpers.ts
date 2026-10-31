@@ -65,3 +65,44 @@ export const CHECK = "23514";
 export const UNIQUE = "23505";
 export const FOREIGN_KEY = "23503";
 export const INSUFFICIENT_PRIVILEGE = "42501";
+
+export const RESTRICT = "23001";
+
+export type AccountState = "eligible" | "incomplete" | "suspended" | "pending_deletion" | "no_settings";
+
+/**
+ * Inserts a synthetic account in the given state. "eligible" has a complete
+ * profile, accepted terms and an active account; each other state differs from
+ * it in exactly one way.
+ */
+export async function createAccount(db: pg.Client, state: AccountState = "eligible") {
+  const id = randomUUID();
+  const username = `u_${id.slice(0, 8)}`;
+  await db.query("insert into auth.users (id) values ($1)", [id]);
+  await db.query(
+    `insert into public.profiles (id, username, display_name, onboarding_completed_at)
+     values ($1, $2, 'Test Person', case when $3 then now() end)`,
+    [id, username, state !== "incomplete"],
+  );
+  if (state !== "no_settings") {
+    await db.query(
+      `insert into public.account_settings
+         (user_id, account_status, terms_accepted_at, terms_version, privacy_notice_version, deletion_requested_at)
+       values ($1, $2, now(), '2026-10', '2026-10', case when $2 = 'pending_deletion' then now() end)`,
+      [id, state === "suspended" || state === "pending_deletion" ? state : "active"],
+    );
+  }
+  return id;
+}
+
+export async function createCommunity(
+  db: pg.Client,
+  { status = "active", privacy = "public" }: { status?: string; privacy?: string } = {},
+) {
+  const { rows } = await db.query(
+    `insert into public.communities (slug, name, kind, privacy, status)
+     values ($1, 'Community', 'interest', $2, $3) returning id`,
+    [`c-${randomUUID().slice(0, 8)}`, privacy, status],
+  );
+  return rows[0].id as string;
+}

@@ -159,6 +159,41 @@ const checks = [
             and conname not like replace(conrelid::regclass::text, 'public.', '') || '\\_%'`,
     ok: empty,
   },
+  // BEL-0203 secure helper framework.
+  {
+    name: "predicate owner role cannot log in and holds only column SELECT",
+    sql: `select r.rolcanlogin or r.rolsuper or r.rolcreaterole or r.rolcreatedb as elevated,
+                 (select count(*)::int from information_schema.table_privileges where grantee = r.rolname) as table_grants,
+                 (select coalesce(string_agg(distinct privilege_type, ','), '') from information_schema.column_privileges
+                  where grantee = r.rolname) as column_privileges,
+                 has_schema_privilege(r.rolname, 'private', 'CREATE') or
+                 has_schema_privilege(r.rolname, 'public', 'CREATE') as can_create
+          from pg_roles r where r.rolname = 'belunai_access_owner'`,
+    ok: (rows) =>
+      rows.length === 1 && rows[0].elevated === false && rows[0].table_grants === 0 &&
+      rows[0].column_privileges === "SELECT" && rows[0].can_create === false,
+  },
+  {
+    name: "11 predicates owned by that role, SECURITY DEFINER, empty search_path",
+    sql: `select count(*)::int as n,
+                 count(*) filter (where not p.prosecdef or p.proconfig is distinct from array['search_path=""'])::int as bad
+          from pg_proc p where p.proowner = 'belunai_access_owner'::regrole
+            and p.pronamespace = 'private'::regnamespace`,
+    ok: (rows) => rows[0].n === 11 && rows[0].bad === 0,
+  },
+  {
+    name: "no other SECURITY DEFINER function in public or private (except Supabase's rls_auto_enable)",
+    sql: `select p.oid::regprocedure::text as sig from pg_proc p
+          where p.prosecdef and p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
+            and p.proowner <> 'belunai_access_owner'::regrole and p.proname <> 'rls_auto_enable'`,
+    ok: empty,
+  },
+  {
+    name: "primary keys guarded on all 26 tables",
+    sql: `select count(*)::int as n from pg_trigger t join pg_class c on c.oid = t.tgrelid
+          where c.relnamespace = 'public'::regnamespace and t.tgname = c.relname || '_forbid_key_update'`,
+    ok: (rows) => rows[0].n === 26,
+  },
   {
     name: "recorded migration versions match supabase/migrations",
     sql: `select version from supabase_migrations.schema_migrations order by version`,
@@ -182,12 +217,22 @@ const denials = [
   { name: "signed-in user cannot read messages", sql: `${SIGNED_IN} select * from public.messages limit 1;` },
 ];
 
-async function expectDenied(sql) {
+// Statements that must fail with restrict_violation (23001): append-only and
+// immutable-key enforcement (BEL-0203). Never committed.
+const AUDIT_ROW = `insert into public.audit_logs (action, resource_type, correlation_id)
+  values ('verify.probe', 'probe', gen_random_uuid());`;
+const restricted = [
+  { name: "audit_logs rows cannot be edited", sql: `${AUDIT_ROW} update public.audit_logs set action = 'x' where action = 'verify.probe';` },
+  { name: "audit_logs rows cannot be deleted", sql: `${AUDIT_ROW} delete from public.audit_logs where action = 'verify.probe';` },
+  { name: "moderation_actions cannot be truncated", sql: "truncate public.moderation_actions;" },
+];
+
+async function expectError(sql, code) {
   try {
     await query(`begin; ${sql} rollback;`);
     return "statement succeeded";
   } catch (error) {
-    return /\b42501\b/.test(error.message) ? null : error.message.slice(0, 300);
+    return new RegExp(`\\b${code}\\b`).test(error.message) ? null : error.message.slice(0, 300);
   }
 }
 
@@ -201,8 +246,11 @@ async function verify() {
     if (!pass) failed += 1;
     console.log(`${pass ? "PASS" : "FAIL"}  ${check.name}${pass ? "" : `\n      ${JSON.stringify(rows).slice(0, 300)}`}`);
   }
-  for (const denial of denials) {
-    const problem = await expectDenied(denial.sql);
+  for (const denial of [
+    ...denials.map((d) => ({ ...d, code: "42501" })),
+    ...restricted.map((d) => ({ ...d, code: "23001" })),
+  ]) {
+    const problem = await expectError(denial.sql, denial.code);
     if (problem) failed += 1;
     console.log(`${problem ? "FAIL" : "PASS"}  ${denial.name}${problem ? `\n      ${problem}` : ""}`);
   }
