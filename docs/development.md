@@ -32,6 +32,9 @@ Supabase client packages (`@supabase/supabase-js`, `@supabase/ssr`) are added wh
 | `npm test` | Unit tests |
 | `npm run db:reset` | Recreate the local disposable test database and apply all migrations |
 | `npm run test:db` | Database tests (DB-01 inventory, constraints) against a fresh local database |
+| `npm run db:push` | Apply pending migrations to `belunai-test` (`SUPABASE_DB_URL`) |
+| `npm run db:verify:hosted` | Check that `belunai-test` migration history equals `supabase/migrations` |
+| `npm run test:db:hosted` | Same database tests against `belunai-test`, each in a rolled-back transaction; never resets |
 | `npm run build` | Production build |
 | `npm run check:secrets` | Scan tracked files and built client JS for credentials and server-only variable names |
 | `npm run test:e2e` | Playwright against `next start` (run `npm run build` first) |
@@ -72,9 +75,16 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm
 2. From the project, copy:
    - **Project URL** (Project Settings → Data API) → `NEXT_PUBLIC_SUPABASE_URL`
    - **Publishable key** (Project Settings → API Keys) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-   - **Connection string**, Session pooler, with the password filled in (Connect button at the top) → `SUPABASE_DB_URL`
-3. Add the three values as secrets in the Claude environment settings and in Vercel (all environments). Never commit or paste them into chat.
-4. Apply migrations: `npm run db:push`.
+   - **Connection string**, **Session pooler** (host `aws-…-eu-west-2.pooler.supabase.com`, user `postgres.<project-ref>`), with the password filled in (Connect button at the top) → `SUPABASE_DB_URL`. The *Direct connection* string (`db.<ref>.supabase.co`) is IPv6-only and does not work from GitHub Actions or the Claude cloud container.
+   - **SSL certificate** (Project Settings → Database → SSL configuration → Download certificate) → `SUPABASE_DB_CA_CERT`, the whole PEM text. It is public, not a secret, but hosted DB tests refuse to connect without it, so TLS is always verified.
+3. Add the three REV-03 values as secrets in the Claude environment settings and in Vercel (all environments). Never commit or paste them into chat.
+4. Apply and verify migrations. Use either route:
+   - **GitHub Actions (recommended):** add `SUPABASE_DB_URL`, `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_DB_CA_CERT` as repository secrets (Settings → Secrets and variables → Actions), then run the *Supabase test project* workflow manually (Actions tab). With `apply` unticked it only does a dry run and verification; tick `apply` to push pending migrations.
+   - **A machine with direct Postgres access:** `npm run db:push`, then `npm run db:verify:hosted` and `npm run test:db:hosted`.
+
+The Claude cloud container cannot do this step. Its egress proxy carries HTTPS on port 443 only, so Postgres connections (5432/6543) cannot leave it, and `*.supabase.co` must also be on the environment's allowed domains before the app can reach the Data API from there.
+
+Hosted DB tests only accept a `SUPABASE_DB_URL` whose project ref matches `NEXT_PUBLIC_SUPABASE_URL`. They never drop or reset anything, and every test runs inside a transaction that is rolled back.
 
 ## Environment and secrets
 
@@ -86,6 +96,7 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm
 | `NEXT_PUBLIC_SUPABASE_URL` | Public | BEL-0201 |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public | BEL-0201 |
 | `SUPABASE_DB_URL` | Server-only (migrations and tooling, never the app) | BEL-0201 |
+| `SUPABASE_DB_CA_CERT` | Public certificate; tooling only (hosted DB tests) | BEL-0202 |
 | `SUPABASE_SECRET_KEY` | Server-only | When a feature first needs admin access |
 | `NEXT_TELEMETRY_DISABLED=1` | Build | BEL-0101 (set in CI) |
 

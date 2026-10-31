@@ -1,14 +1,18 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
+import { HOSTED, hostedClientConfig } from "../../scripts/db-hosted.mjs";
 import { testDatabaseUrl } from "../../scripts/db-reset.mjs";
 
 /**
  * One connection per test file. Each test runs inside a transaction that is
- * rolled back, so tests are isolated and leave the database unchanged.
+ * rolled back, so tests are isolated and leave the database unchanged. That
+ * rollback is what makes hosted runs against `belunai-test` safe.
  */
 export function connectTestDatabase() {
-  const db = new pg.Client({ connectionString: testDatabaseUrl().toString() });
+  const db = new pg.Client(
+    HOSTED ? hostedClientConfig() : { connectionString: testDatabaseUrl().toString() },
+  );
   beforeAll(() => db.connect());
   afterAll(() => db.end());
   beforeEach(() => db.query("begin"));

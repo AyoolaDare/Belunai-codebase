@@ -1,0 +1,44 @@
+name: Supabase test project
+
+# Manual only. Applies pending migrations to the `belunai-test` project (REV-03)
+# and runs the database suite there inside rolled-back transactions.
+# Needs repository secrets SUPABASE_DB_URL (Session pooler string),
+# NEXT_PUBLIC_SUPABASE_URL and SUPABASE_DB_CA_CERT; see docs/development.md.
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply pending migrations (otherwise dry run + verify only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-test-project
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Migrate and verify belunai-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_DB_CA_CERT: ${{ secrets.SUPABASE_DB_CA_CERT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Pending migrations (dry run)
+        run: npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
+      - name: Apply migrations
+        if: ${{ inputs.apply }}
+        run: npx supabase db push --yes --db-url "$SUPABASE_DB_URL"
+      - run: npm run db:verify:hosted
+      - run: npm run test:db:hosted
