@@ -40,7 +40,7 @@ Open registration with optional founding invitations; proposed 18+ pilot by self
 | Domain, TLS, allowed redirect URLs | Owner | **Unassigned** (TLS provided by Vercel once a domain is attached) | BEL-0201 | — |
 | Environment file policy | Owner | No `.env*` file committed; variables live in Vercel project settings and are listed in development.md | BEL-0104 | Owner instruction 2026-10-31 |
 | Supabase projects | Owner | One test project `belunai-test` (REV-03); owner adds its URL, publishable key and database connection string as Claude environment secrets, never pasted into chat | BEL-0201 | Owner decision 2026-10-31 |
-| Supabase region | Owner | EU West (London), eu-west-2 | BEL-0201 | Owner decision 2026-10-31 |
+| Supabase region | Owner | EU West (Paris), eu-west-3 — adopted from the created `belunai-test` project; originally London, eu-west-2 | BEL-0201 | Owner decision 2026-10-31; owner instruction to adjust to the created project 2026-10-31 |
 | Email sender, Google OAuth client, phone OTP provider and budget | Owner | **Unassigned** | BEL-0301 | — |
 | Platform owner bootstrap custody | Owner | **Unassigned** | BEL-0205 | — |
 | Terms, privacy notice, community standards, age safeguards texts | Owner | **Unassigned** | BEL-0302 (versions) / BEL-1402 (final) | — |

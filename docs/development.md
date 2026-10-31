@@ -68,7 +68,7 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm
 
 ## Supabase test project setup (REV-03)
 
-1. In the Supabase dashboard create one project named `belunai-test`, region **West EU (London)**. Save the database password it asks for.
+1. In the Supabase dashboard create one project named `belunai-test`, region **West EU (Paris)**, eu-west-3 (the region `belunai-test` was created in). Save the database password it asks for.
 2. From the project, copy:
    - **Project URL** (Project Settings → Data API) → `NEXT_PUBLIC_SUPABASE_URL`
    - **Publishable key** (Project Settings → API Keys) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
