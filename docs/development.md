@@ -32,7 +32,9 @@ Supabase client packages (`@supabase/supabase-js`, `@supabase/ssr`) are added wh
 | `npm test` | Unit tests |
 | `npm run db:push` / `db:verify` | Apply migrations to / run DB-01 checks on the hosted test project over HTTPS |
 | `npm run db:reset` | Recreate the local disposable test database and apply all migrations |
-| `npm run test:db` | Database tests (DB-01 inventory, constraints) against a fresh local database |
+| `npm run test:db` | Database tests (inventory, constraints, access helpers, Storage, owners, concurrency) against a fresh local database |
+| `npm run db:backup-smoke` | Local backup/restore rehearsal: synthetic data, pg_dump, restore, compare |
+| `npm run db:bootstrap-owner -- <uuid>` | One-time platform owner bootstrap on the hosted test project (account must be onboarded and active) |
 | `npm run build` | Production build |
 | `npm run check:secrets` | Scan tracked files and built client JS for credentials and server-only variable names |
 | `npm run test:e2e` | Playwright against `next start` (run `npm run build` first) |
@@ -82,6 +84,15 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/belunai_test npm
 The development container cannot open direct Postgres connections (ports 5432/6543 are blocked; only HTTPS leaves), so migrations go through the Supabase Management API over HTTPS (`scripts/supabase-remote.mjs`). History is written to `supabase_migrations.schema_migrations`, the same table the Supabase CLI uses. `db:verify` mirrors the DB-01 inventory (tests/db/inventory.test.ts); its role-denial checks run as `anon`/`authenticated` inside transactions that are never committed, so it writes nothing.
 
 New Supabase projects pre-provision `public.rls_auto_enable()` and its `ensure_rls` event trigger (enables RLS on every new public table), with EXECUTE granted to the API roles. M01 revokes that grant; the trigger keeps working. `tests/db/supabase-shim.sql` reproduces the function so local tests catch a regression.
+
+## Owners, locks and audit (BEL-0205)
+
+- Every active organisation and community has exactly one owner, checked at commit. A transfer locks the parent, demotes the old owner, then promotes the new one in the same transaction. Removing or erasing the last owner fails at commit.
+- The platform owner is created once, by the operator, with `npm run db:bootstrap-owner -- <uuid>`; never by sign-up.
+- Lock order in operations: `private.lock_accounts(ids)` (ascending), `private.lock_pair(a, b)`, then the entity row (`for update`), content parent, dependent case.
+- Audit metadata is `{}` or `{"version": n, ...}` with short, non-identifying values; the database rejects secrets, contact details and bodies.
+- Retry a transaction only through `withTransactionRetry` (deadlock/serialization failures, at most a few attempts), and only when the operation is idempotent.
+- Database tests that need real commits use `connectCommittedClients` in `tests/db/helpers.ts`, which removes what they create.
 
 ## Storage (BEL-0204)
 

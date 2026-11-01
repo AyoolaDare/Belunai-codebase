@@ -15,7 +15,9 @@
     "test:db": "vitest run --project db",
     "db:reset": "node scripts/db-reset.mjs",
     "db:push": "node scripts/supabase-remote.mjs push",
-    "db:verify": "node scripts/supabase-remote.mjs verify"
+    "db:verify": "node scripts/supabase-remote.mjs verify",
+    "db:backup-smoke": "node scripts/backup-restore-smoke.mjs",
+    "db:bootstrap-owner": "node scripts/supabase-remote.mjs bootstrap-owner"
   },
   "dependencies": {
     "next": "16.4.3",

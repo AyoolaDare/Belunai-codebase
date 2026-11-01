@@ -213,6 +213,22 @@ const checks = [
     sql: `select tablename, policyname from pg_policies where schemaname = 'storage'`,
     ok: empty,
   },
+  // BEL-0205 owners, locks and audit minimisation.
+  {
+    name: "deferred exactly-one-owner triggers on organisations, communities and platform roles",
+    sql: `select count(*)::int as n from pg_trigger t
+          where t.tgname like '%_exactly_one_owner' and t.tgdeferrable and t.tginitdeferred
+            and t.tgrelid in ('public.organisations'::regclass, 'public.organisation_roles'::regclass,
+                              'public.communities'::regclass, 'public.community_memberships'::regclass,
+                              'public.platform_roles'::regclass)`,
+    ok: (rows) => rows[0].n === 5,
+  },
+  {
+    name: "audit metadata minimisation constraint present",
+    sql: `select count(*)::int as n from pg_constraint
+          where conrelid = 'public.audit_logs'::regclass and conname = 'audit_logs_metadata_minimal_check'`,
+    ok: (rows) => rows[0].n === 1,
+  },
   {
     name: "recorded migration versions match supabase/migrations",
     sql: `select version from supabase_migrations.schema_migrations order by version`,
@@ -299,6 +315,22 @@ async function storageProbes() {
 // immutable-key enforcement (BEL-0203). Never committed.
 const AUDIT_ROW = `insert into public.audit_logs (action, resource_type, correlation_id)
   values ('verify.probe', 'probe', gen_random_uuid());`;
+const ownerAndAudit = [
+  {
+    name: "active organisation without an owner rejected at commit",
+    sql: "insert into public.organisations (slug, name) values ('verify-probe', 'Probe'); set constraints all immediate;",
+  },
+  {
+    name: "active community without an owner rejected at commit",
+    sql: "insert into public.communities (slug, name, kind) values ('verify-probe', 'Probe', 'interest'); set constraints all immediate;",
+  },
+  {
+    name: "audit metadata with contact details rejected",
+    sql: `insert into public.audit_logs (action, resource_type, correlation_id, metadata)
+          values ('verify.probe', 'probe', gen_random_uuid(), '{"version": 1, "email": "x"}');`,
+  },
+];
+
 const restricted = [
   { name: "audit_logs rows cannot be edited", sql: `${AUDIT_ROW} update public.audit_logs set action = 'x' where action = 'verify.probe';` },
   { name: "audit_logs rows cannot be deleted", sql: `${AUDIT_ROW} delete from public.audit_logs where action = 'verify.probe';` },
@@ -327,6 +359,7 @@ async function verify() {
   for (const denial of [
     ...denials.map((d) => ({ ...d, code: "42501" })),
     ...restricted.map((d) => ({ ...d, code: "23001" })),
+    ...ownerAndAudit.map((d) => ({ ...d, code: "23514" })),
   ]) {
     const problem = await expectError(denial.sql, denial.code);
     if (problem) failed += 1;
@@ -349,10 +382,24 @@ async function verify() {
   console.log("All checks passed.");
 }
 
+// Non-API platform owner bootstrap (BEL-0205). The account must already be
+// signed up, onboarded and active. Runs once; afterwards use owner transfer.
+async function bootstrapOwner() {
+  const ownerId = process.argv[3] ?? "";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(ownerId)) {
+    throw new Error("Usage: npm run db:bootstrap-owner -- <account uuid (lowercase)>");
+  }
+  const correlation = crypto.randomUUID();
+  await query(`begin;
+select private.bootstrap_platform_owner(${literal(ownerId)}::uuid, ${literal(correlation)}::uuid);
+commit;`);
+  console.log(`Platform owner bootstrapped (audit correlation ${correlation}).`);
+}
+
 const command = process.argv[2];
-const run = { push, verify }[command];
+const run = { push, verify, "bootstrap-owner": bootstrapOwner }[command];
 if (!run) {
-  console.error("Usage: node scripts/supabase-remote.mjs push|verify");
+  console.error("Usage: node scripts/supabase-remote.mjs push|verify|bootstrap-owner <uuid>");
   process.exit(2);
 }
 run().catch((error) => {

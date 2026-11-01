@@ -45,7 +45,7 @@ Open registration with optional founding invitations; proposed 18+ pilot by self
 | Platform owner bootstrap custody | Owner | **Unassigned** | BEL-0205 | — |
 | Terms, privacy notice, community standards, age safeguards texts | Owner | **Unassigned** | BEL-0302 (versions) / BEL-1402 (final) | — |
 | Support contact | Owner | **Unassigned** | BEL-1104 | — |
-| Backup window, provider logs, legal holds | Owner | **Unassigned** | BEL-1402 | — |
+| Backup window, provider logs, legal holds | Owner | **Unassigned** for production. Testing (REV-03): `belunai-test` holds synthetic data only and relies on Supabase's plan defaults; no backup requirement. Restore procedure rehearsed locally with `npm run db:backup-smoke` (BEL-0205) | BEL-1402 | REV-03 |
 | Monitoring/incident owner | Owner | **Unassigned** | BEL-1403 | — |
 | Pilot cohort permission | Owner | **Unassigned** | BEL-1502 | — |
 | Production cost budget | Owner | **Unassigned** | BEL-1402 | — |

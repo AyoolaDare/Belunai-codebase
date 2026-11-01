@@ -9,6 +9,6 @@ Before any change, read the active v2.1 baseline in `docs/`:
 
 Then check `docs/implementation_status.md` (task/gate status), `docs/decision_register.md` (owner decisions) and `docs/development.md` (toolchain and commands).
 
-Current phase: P02. BEL-0201 to BEL-0204 are COMPLETE (verified on the `belunai-test` Supabase project). Next task: BEL-0205 (deferred exactly-one-owner checks), then the G02 gate review.
+Current phase: P02. All tasks BEL-0201 to BEL-0205 are COMPLETE (verified on the `belunai-test` Supabase project). Gate G02 is awaiting owner review; do not start P03 (BEL-0301+) until the owner approves G02.
 
 @AGENTS.md

@@ -106,3 +106,94 @@ export async function createCommunity(
   );
   return rows[0].id as string;
 }
+
+/**
+ * Runs the transaction's deferred constraint checks now (as COMMIT would)
+ * and expects them to fail with the named constraint. The test transaction
+ * itself is still rolled back afterwards.
+ */
+export async function expectCommitRejected(db: pg.Client, constraint: string) {
+  await expectRejected(db, "set constraints all immediate", [], { constraint });
+  await db.query("set constraints all deferred");
+}
+
+/** Runs the deferred checks now and expects them to pass. */
+export async function expectCommitAccepted(db: pg.Client) {
+  await db.query("set constraints all immediate");
+  await db.query("set constraints all deferred");
+}
+
+// ---------------------------------------------------------------------------
+// Scoped fixtures. Synthetic data only.
+
+export async function createOwnedOrganisation(db: pg.Client, owner?: string) {
+  const ownerId = owner ?? (await createAccount(db));
+  const organisationId = await createOrganisation(db);
+  await db.query("insert into public.organisation_roles (organisation_id, user_id, role) values ($1, $2, 'owner')", [
+    organisationId,
+    ownerId,
+  ]);
+  return { organisationId, ownerId };
+}
+
+export async function addOrganisationAdmin(db: pg.Client, organisationId: string, user?: string) {
+  const userId = user ?? (await createAccount(db));
+  await db.query("insert into public.organisation_roles (organisation_id, user_id, role) values ($1, $2, 'admin')", [
+    organisationId,
+    userId,
+  ]);
+  return userId;
+}
+
+export async function createOwnedCommunity(db: pg.Client, owner?: string) {
+  const ownerId = owner ?? (await createAccount(db));
+  const communityId = await createCommunity(db);
+  await addCommunityMember(db, communityId, "owner", ownerId);
+  return { communityId, ownerId };
+}
+
+export async function addCommunityMember(db: pg.Client, communityId: string, role = "member", user?: string) {
+  const userId = user ?? (await createAccount(db));
+  await db.query(
+    `insert into public.community_memberships (community_id, user_id, role, status, joined_at)
+     values ($1, $2, $3, 'active', now())`,
+    [communityId, userId, role],
+  );
+  return userId;
+}
+
+// ---------------------------------------------------------------------------
+// Committed-data harness for concurrency tests. Each client autocommits unless
+// the test opens a transaction. Everything created through `track` is removed
+// afterwards, including platform roles, which the owner guarantee otherwise
+// keeps forever (removed with triggers disabled: local superuser test only).
+
+export function connectCommittedClients(count: number) {
+  const clients = Array.from({ length: count }, () => new pg.Client({ connectionString: testDatabaseUrl().toString() }));
+  const created = { users: new Set<string>(), organisations: new Set<string>(), communities: new Set<string>() };
+  beforeAll(() => Promise.all(clients.map((c) => c.connect())));
+  afterAll(() => Promise.all(clients.map((c) => c.end())));
+  afterEach(async () => {
+    const [admin] = clients;
+    await Promise.all(clients.map((c) => c.query("rollback").catch(() => undefined)));
+    await admin.query("begin");
+    await admin.query("set local session_replication_role = replica");
+    await admin.query("delete from public.platform_roles where user_id = any($1)", [[...created.users]]);
+    await admin.query("delete from public.audit_logs where resource_id = any($1)", [[...created.users]]);
+    await admin.query("commit");
+    await admin.query("delete from public.communities where id = any($1)", [[...created.communities]]);
+    await admin.query("delete from public.organisations where id = any($1)", [[...created.organisations]]);
+    await admin.query("delete from auth.users where id = any($1)", [[...created.users]]);
+    created.users.clear();
+    created.organisations.clear();
+    created.communities.clear();
+  });
+  return {
+    clients,
+    track: {
+      user: (id: string) => (created.users.add(id), id),
+      organisation: (id: string) => (created.organisations.add(id), id),
+      community: (id: string) => (created.communities.add(id), id),
+    },
+  };
+}
