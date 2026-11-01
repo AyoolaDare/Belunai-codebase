@@ -79,6 +79,11 @@ const EXPECTED_TABLES = [
   "profiles", "user_blocks", "user_follows", "verification_requests",
 ];
 
+const BUCKET_IDS = [
+  "community-assets", "moderation-evidence", "organisation-assets", "post-images", "profile-assets",
+  "verification-evidence",
+];
+
 const migrationVersions = () =>
   readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
@@ -194,6 +199,20 @@ const checks = [
           where c.relnamespace = 'public'::regnamespace and t.tgname = c.relname || '_forbid_key_update'`,
     ok: (rows) => rows[0].n === 26,
   },
+  // BEL-0204 private Storage.
+  {
+    name: "exactly six private buckets, 10 MiB, JPEG/PNG/WebP only",
+    sql: `select id, public, file_size_limit::int as size_limit, array_to_string(allowed_mime_types, ',') as types
+          from storage.buckets order by id`,
+    ok: (rows) =>
+      JSON.stringify(rows.map((r) => r.id)) === JSON.stringify(BUCKET_IDS) &&
+      rows.every((r) => r.public === false && r.size_limit === 10485760 && r.types === "image/jpeg,image/png,image/webp"),
+  },
+  {
+    name: "no Storage policies (no direct object access for API roles)",
+    sql: `select tablename, policyname from pg_policies where schemaname = 'storage'`,
+    ok: empty,
+  },
   {
     name: "recorded migration versions match supabase/migrations",
     sql: `select version from supabase_migrations.schema_migrations order by version`,
@@ -215,7 +234,66 @@ const denials = [
     sql: `${SIGNED_IN} update public.profiles set bio = 'x' where id = auth.uid();`,
   },
   { name: "signed-in user cannot read messages", sql: `${SIGNED_IN} select * from public.messages limit 1;` },
+  {
+    name: "signed-in user cannot write a Storage object row, even in their own folder",
+    sql: `${SIGNED_IN} insert into storage.objects (bucket_id, name, owner_id)
+          values ('profile-assets', 'profiles/' || auth.uid() || '/' || gen_random_uuid() || '.jpg', auth.uid()::text);`,
+  },
+  {
+    name: "anon cannot write a Storage object row",
+    sql: `set local role anon; insert into storage.objects (bucket_id, name)
+          values ('post-images', 'posts/' || gen_random_uuid() || '/' || gen_random_uuid() || '.jpg');`,
+  },
 ];
+
+// Statements run as an API role that must see or change no rows. Never committed.
+const zeroRows = [
+  { name: "signed-in user sees no buckets or objects", sql: `${SIGNED_IN} select (select count(*) from storage.buckets) + (select count(*) from storage.objects) as n;` },
+  { name: "signed-in user cannot make a bucket public", sql: `${SIGNED_IN} with u as (update storage.buckets set public = true returning 1) select count(*) as n from u;` },
+  { name: "anon cannot make a bucket public", sql: "set local role anon; with u as (update storage.buckets set public = true returning 1) select count(*) as n from u;" },
+];
+
+// Real Storage API requests with the publishable key, as an anonymous browser.
+async function storageProbes() {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!key) return [{ name: "Storage API probes", problem: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is not set" }];
+  const uuid = () => crypto.randomUUID();
+  const objectKey = `profiles/${uuid()}/${uuid()}.jpg`;
+  // A valid 1x1 JPEG, so a refusal is about access, not file content.
+  const jpeg = Buffer.from(
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+    "base64",
+  );
+  const call = async (method, path, body, contentType = "application/json") => {
+    const response = await fetch(`${base}/storage/v1${path}`, {
+      method,
+      headers: { apikey: key, Authorization: `Bearer ${key}`, ...(body ? { "Content-Type": contentType } : {}) },
+      body: body && contentType === "application/json" ? JSON.stringify(body) : body,
+    });
+    const text = await response.text();
+    return { status: response.status, text };
+  };
+  const denied = (r) => (r.status >= 400 ? null : `HTTP ${r.status}: ${r.text.slice(0, 200)}`);
+  // Refused by row-level security, not by a missing bucket or bad input.
+  const rlsDenied = (r) =>
+    r.status >= 400 && /row-level security/.test(r.text) ? null : `HTTP ${r.status}: ${r.text.slice(0, 200)}`;
+  const emptyList = (r) => (r.status === 200 && r.text.trim() === "[]" ? null : `HTTP ${r.status}: ${r.text.slice(0, 200)}`);
+  return [
+    { name: "anon Storage API: list buckets returns none", problem: emptyList(await call("GET", "/bucket")) },
+    {
+      name: "anon Storage API: list objects returns none",
+      problem: emptyList(await call("POST", "/object/list/profile-assets", { prefix: "", limit: 100 })),
+    },
+    { name: "anon Storage API: read by guessed key denied", problem: denied(await call("GET", `/object/profile-assets/${objectKey}`)) },
+    { name: "anon Storage API: public URL denied", problem: denied(await call("GET", `/object/public/profile-assets/${objectKey}`)) },
+    { name: "anon Storage API: upload denied", problem: rlsDenied(await call("POST", `/object/profile-assets/${objectKey}`, jpeg, "image/jpeg")) },
+    { name: "anon Storage API: upsert denied", problem: rlsDenied(await call("PUT", `/object/profile-assets/${objectKey}`, jpeg, "image/jpeg")) },
+    { name: "anon Storage API: signed upload grant denied", problem: rlsDenied(await call("POST", `/object/upload/sign/profile-assets/${objectKey}`, {})) },
+    { name: "anon Storage API: signed read URL denied", problem: denied(await call("POST", `/object/sign/profile-assets/${objectKey}`, { expiresIn: 60 })) },
+    { name: "anon Storage API: create bucket denied", problem: denied(await call("POST", "/bucket", { id: "open", name: "open", public: true })) },
+  ];
+}
 
 // Statements that must fail with restrict_violation (23001): append-only and
 // immutable-key enforcement (BEL-0203). Never committed.
@@ -253,6 +331,16 @@ async function verify() {
     const problem = await expectError(denial.sql, denial.code);
     if (problem) failed += 1;
     console.log(`${problem ? "FAIL" : "PASS"}  ${denial.name}${problem ? `\n      ${problem}` : ""}`);
+  }
+  for (const check of zeroRows) {
+    const rows = await query(`begin; ${check.sql} rollback;`);
+    const pass = rows.length === 1 && Number(rows[0].n) === 0;
+    if (!pass) failed += 1;
+    console.log(`${pass ? "PASS" : "FAIL"}  ${check.name}${pass ? "" : `\n      ${JSON.stringify(rows).slice(0, 300)}`}`);
+  }
+  for (const probe of await storageProbes()) {
+    if (probe.problem) failed += 1;
+    console.log(`${probe.problem ? "FAIL" : "PASS"}  ${probe.name}${probe.problem ? `\n      ${probe.problem}` : ""}`);
   }
   if (failed) {
     console.error(`${failed} check(s) failed.`);

@@ -83,6 +83,17 @@ The development container cannot open direct Postgres connections (ports 5432/65
 
 New Supabase projects pre-provision `public.rls_auto_enable()` and its `ensure_rls` event trigger (enables RLS on every new public table), with EXECUTE granted to the API roles. M01 revokes that grant; the trigger keeps working. `tests/db/supabase-shim.sql` reproduces the function so local tests catch a regression.
 
+## Storage (BEL-0204)
+
+All six buckets are private and have no Storage policies, so browsers can never touch objects directly. Server code does every transfer:
+
+1. Reserve: build the key with `objectKey()` from server-known IDs (never a client-supplied key) and record it in the owning row as pending.
+2. Upload: issue a signed upload grant for that exact key (server secret key, BEL-0301+), never upsert.
+3. Inspect: download, run `inspectImage()`, store only the returned bytes, then mark the row ready in one transaction.
+4. Deliver: a route checks the viewer's current access, then streams with `protectedMediaResponse()`; denied and missing both get `mediaNotFoundResponse()`. Temporary signed URLs, when unavoidable, last at most `MAX_SIGNED_URL_SECONDS` (60).
+
+Delete bytes through the Storage API, never by deleting `storage.objects` rows.
+
 ## Environment and secrets
 
 - All `.env*` files are git-ignored; no environment file is committed. For local development create `.env.local` by hand.
@@ -105,4 +116,5 @@ New Supabase projects pre-provision `public.rls_auto_enable()` and its `ensure_r
 - `npm audit --omit=dev`: 0 vulnerabilities in production dependencies.
 - `npm audit` (all): 16 moderate findings, all in the ESLint toolchain through `minimatch` (dev-only, never shipped). The only automatic fix is a breaking major downgrade of `eslint-config-next`; not applied. Re-check when eslint-config-next updates.
 - Production licences: MIT, Apache-2.0, ISC, BSD-3-Clause, 0BSD; `caniuse-lite` CC-BY-4.0 (data, build-time); `@img/sharp-libvips-*` LGPL-3.0-or-later (dynamically linked native library used by Next image optimisation; acceptable for a hosted service, review if distributing binaries).
+- `sharp` 0.35.5 (BEL-0204, 2026-11-01): image decode/re-encode for upload inspection. Already installed with Next.js for image optimisation, so pinning it adds no new package; Apache-2.0, bundles LGPL libvips (reviewed above). Runs only on the server.
 - New runtime dependencies need purpose, support, compatibility, size, security and licence review (agents.md section 4).

@@ -9,6 +9,6 @@ Before any change, read the active v2.1 baseline in `docs/`:
 
 Then check `docs/implementation_status.md` (task/gate status), `docs/decision_register.md` (owner decisions) and `docs/development.md` (toolchain and commands).
 
-Current phase: P02. BEL-0201, BEL-0202 and BEL-0203 are COMPLETE (verified on the `belunai-test` Supabase project, 2026-10-31). Next task: BEL-0204 (private Storage).
+Current phase: P02. BEL-0201 to BEL-0204 are COMPLETE (verified on the `belunai-test` Supabase project). Next task: BEL-0205 (deferred exactly-one-owner checks), then the G02 gate review.
 
 @AGENTS.md
